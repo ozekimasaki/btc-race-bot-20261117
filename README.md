@@ -26,7 +26,14 @@ Full-position hold with an armed trailing stop:
 
 Graded on the kit's published dev window before submission: net PnL
 +$7.74, 2 trades, max drawdown 1.73% (the house momentum baseline makes
-+$2.45 and buy-and-hold +$1.07 on the same window).
++$2.45 and buy-and-hold +$1.07 on the same window). The parameters sit in
+the middle of a plateau, not on a knife edge: ARM 70–90 bps with TRAIL
+30–40 bps all grade +$7.74 on the dev window, while arming earlier
+(50–60 bps) exits on the first small pop and earns under +$1.25, and a
+re-entry variant after the trailing exit grades −$8.06 — which is why the
+shipped bot never re-enters. The final code was re-graded after the
+dead re-entry path was removed; the score is unchanged, as expected,
+since that path could never fire.
 
 ## Layout
 

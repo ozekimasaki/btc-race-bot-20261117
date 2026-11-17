@@ -4,13 +4,13 @@ import { runBars, type OrderInput } from './vendor/makefun-bars.ts';
 // the first batch and held through ordinary chop; once the unrealised gain
 // over the position's average cost reaches ARM_BPS, a trailing stop follows
 // the peak close TRAIL_BPS below it and locks the spike in if it fades. A
-// hard stop STOP_BPS under average cost caps a fast crash. Optionally the
-// bot re-enters once if, after a trailing exit, the close makes a new high
-// over the exit reference (the recovery is real, not a dead bounce).
+// hard stop STOP_BPS under average cost caps a fast crash. After any exit
+// the bot stays in cash: re-entry after a fade was tested on the dev window
+// and lost money (the bounce is more often a trap than a recovery, and a
+// second round trip pays the ~26 bps toll again), so it is not done.
 const ARM_BPS = 80;
 const TRAIL_BPS = 40;
 const STOP_BPS = 350;
-const REENTER = 0;
 const SIZE_NUM = 100;
 const SIZE_DEN = 100;
 const MAX_SLIP = 200;
@@ -18,10 +18,7 @@ const MAX_SLIP = 200;
 let peak = 0n;
 let armed = false;
 let wasHolding = false;
-let exitRef = 0n;
-let postExitHigh = 0n;
-let reentered = false;
-let trailExit = false;
+let exited = false;
 
 await runBars({
   onBatch(state, batch): OrderInput[] {
@@ -45,22 +42,14 @@ await runBars({
       if (c * 10000n <= avgCost * BigInt(10000 - STOP_BPS)) exit = true;
       wasHolding = true;
       if (exit) {
-        trailExit = armed;
-        exitRef = c;
-        postExitHigh = c;
+        exited = true;
         return [{ side: 'sell', symbol: sym, qty: pos.qty, max_slippage_bps: MAX_SLIP }];
       }
       return [];
     }
     wasHolding = false;
-    // flat
-    if (exitRef > 0n) {
-      if (c > postExitHigh) postExitHigh = c;
-      if (!(REENTER === 1 && trailExit && !reentered && postExitHigh * 10000n > exitRef * 10050n)) {
-        return [];
-      }
-      reentered = true;
-    }
+    // flat: stay in cash after an exit; otherwise take the position
+    if (exited) return [];
     let notional = (state.cash * BigInt(SIZE_NUM)) / BigInt(SIZE_DEN);
     const room = state.weightRoom(sym);
     if (room < notional) notional = room;
